@@ -1,0 +1,18 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# User Data, Secrets, Configuration
+user_data/
+.env
+config.json
+
+# Dev and Linting
+.ruff_cache
