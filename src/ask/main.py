@@ -171,7 +171,10 @@ def setup(user_data_dir: str, config_file: str, env_file: str) -> bool:
     return True
 
 
-def main(args: dict[str, str | bool]):
+def main():
+    # Parse Arguments
+    args: dict[str, str | bool] = parse_arguments(sys.argv[1:])
+
     # Resolve relevant directories and files
     user_data_dir: str = platformdirs.user_data_dir(PROGRAM_NAME, ensure_exists=True)
     config_file: str = os.path.join(user_data_dir, "config.json")
@@ -303,6 +306,4 @@ def main(args: dict[str, str | bool]):
 
 
 if __name__ == "__main__":
-    print(sys.argv[1:])
-    args: dict[str, str | bool] = parse_arguments(sys.argv[1:])
-    main(args)
+    main()
