@@ -3,7 +3,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 import sys
 
-from constants import ARGUMENT_DEFINITIONS, PROGRAM_NAME
+from ask.constants import ARGUMENT_DEFINITIONS, PROGRAM_NAME
 
 
 def log_stdout(text: str, style: str = "dim"):

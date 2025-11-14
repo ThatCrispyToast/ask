@@ -10,8 +10,8 @@ import sys
 import time
 import platformdirs
 
-from util import log_stdout, parse_arguments, update_panel
-from constants import (
+from ask.util import log_stdout, parse_arguments, update_panel
+from ask.constants import (
     DEFAULT_MODEL,
     DEFAULT_ASAP_MODEL,
     DEFAULT_FREE_MODEL,
