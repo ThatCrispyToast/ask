@@ -72,5 +72,4 @@ def parse_arguments(argv: list[str]) -> dict[str, str | bool]:
 
     args["prompt"] = " ".join(prompt_list)
 
-    print(argv, args)
     return args
