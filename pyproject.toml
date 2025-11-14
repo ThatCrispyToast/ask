@@ -11,3 +11,5 @@ dependencies = [
     "rich>=14.2.0",
 ]
 
+[project.scripts]
+ask = "ask.main:main"
