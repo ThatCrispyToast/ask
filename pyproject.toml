@@ -5,12 +5,9 @@ description = "A minimal openrouter cli."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "platformdirs>=4.5.0",
     "python-dotenv>=1.2.1",
     "requests>=2.32.5",
     "rich>=14.2.0",
 ]
 
-[dependency-groups]
-dev = [
-    "ruff>=0.14.4",
-]

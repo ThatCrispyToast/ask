@@ -9,10 +9,5 @@ wheels/
 # Virtual environments
 .venv
 
-# User Data, Secrets, Configuration
-user_data/
-.env
-config.json
-
 # Dev and Linting
 .ruff_cache

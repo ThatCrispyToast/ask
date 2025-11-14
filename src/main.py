@@ -1,17 +1,23 @@
 import requests
 import json
 import os
-from rich import print
+from rich.markdown import Markdown
+from rich.console import Console
+from rich.panel import Panel
+from rich.live import Live
 from dotenv import load_dotenv
+import sys
+import time
+import platformdirs
 
-
-DEFAULT_MODEL = "x-ai/grok-code-fast-1"
-DEFAULT_FREE_MODEL = "minimax/minimax-m2:free"
-DEFAULT_SYSTEM_PROMPT = "Provide quick and concise answers while still answering fully and with sufficient detail. Match the brevity of the user unless otherwise directed."
-
-
-def log_stdout(text: str, style: str = "dim"):
-    print(f"[{style}]{text}[/{style}]")
+from util import log_stdout, parse_arguments, update_panel
+from constants import (
+    DEFAULT_MODEL,
+    DEFAULT_ASAP_MODEL,
+    DEFAULT_FREE_MODEL,
+    DEFAULT_SYSTEM_PROMPT,
+    PROGRAM_NAME,
+)
 
 
 def setup(user_data_dir: str, config_file: str, env_file: str) -> bool:
@@ -20,8 +26,7 @@ def setup(user_data_dir: str, config_file: str, env_file: str) -> bool:
     env_file_exists = os.path.exists(env_file)
     config_file_exists = os.path.exists(config_file)
 
-
-    if env_file_exists and config_file_exists: # user_data checked implicitly
+    if env_file_exists and config_file_exists:  # user_data checked implicitly
         # Leave setup
         return True
 
@@ -51,7 +56,7 @@ def setup(user_data_dir: str, config_file: str, env_file: str) -> bool:
             if response.ok:
                 data = response.json()["data"]
 
-                if data["limit"] == 0 or data["is_free_tier"] == True:
+                if data["limit"] == 0 or data["is_free_tier"]:
                     log_stdout(
                         "NOTE: The key provided or associated account can only use free models.",
                         "bold cyan",
@@ -89,30 +94,73 @@ def setup(user_data_dir: str, config_file: str, env_file: str) -> bool:
         for model in model_list_data:
             model_list.append(model["id"])
 
+        # Obtain default model
         log_stdout(
-            f'>> Enter preferred default model (default: "{DEFAULT_MODEL if not force_free else DEFAULT_FREE_MODEL}"):', "bold"
+            f'>> Enter preferred default model (default: "{DEFAULT_MODEL if not force_free else DEFAULT_FREE_MODEL}"):',
+            "bold",
         )
         # Keep asking until model is valid
         model_exists: bool = False
         default_model_in: str = ""
-        while model_exists == False:
+        while not model_exists:
             default_model_in = input().strip()
             # Break with default model
             if default_model_in == "":
-                default_model_in = DEFAULT_MODEL if not force_free else DEFAULT_FREE_MODEL
+                default_model_in = (
+                    DEFAULT_MODEL if not force_free else DEFAULT_FREE_MODEL
+                )
                 break
             # Check if model exists
             if default_model_in in model_list:
                 if force_free:
                     # TODO: Replace with pricing check
-                    if default_model_in.endswith(":free") == False:
-                        log_stdout(f'>> This key or account can only use free models. Try again (default: "{DEFAULT_MODEL if not force_free else DEFAULT_FREE_MODEL}"):', "yellow bold")
+                    if not default_model_in.endswith(":free"):
+                        log_stdout(
+                            f'>> This key or account can only use free models. Try again (default: "{DEFAULT_MODEL if not force_free else DEFAULT_FREE_MODEL}"):',
+                            "yellow bold",
+                        )
 
                 break
-            log_stdout(f'>> Model does not exist. Try again (default: "{DEFAULT_MODEL if not force_free else DEFAULT_FREE_MODEL}"):', "yellow bold")
+            log_stdout(
+                f'>> Model does not exist. Try again (default: "{DEFAULT_MODEL if not force_free else DEFAULT_FREE_MODEL}"):',
+                "yellow bold",
+            )
+
+        # Obtain ASAP model
+        log_stdout(
+            f'>> Enter preferred default ASAP model (default: "{DEFAULT_ASAP_MODEL if not force_free else DEFAULT_FREE_MODEL}"):',
+            "bold",
+        )
+        # Keep asking until model is valid
+        model_exists: bool = False
+        default_asap_model_in: str = ""
+        while not model_exists:
+            default_asap_model_in = input().strip()
+            # Break with default model
+            if default_asap_model_in == "":
+                default_asap_model_in = (
+                    DEFAULT_ASAP_MODEL if not force_free else DEFAULT_FREE_MODEL
+                )
+                break
+            # Check if model exists
+            if default_asap_model_in in model_list:
+                if force_free:
+                    # TODO: Replace with pricing check
+                    if not default_asap_model_in.endswith(":free"):
+                        log_stdout(
+                            f'>> This key or account can only use free models. Try again (default: "{DEFAULT_ASAP_MODEL if not force_free else DEFAULT_FREE_MODEL}"):',
+                            "yellow bold",
+                        )
+
+                break
+            log_stdout(
+                f'>> Model does not exist. Try again (default: "{DEFAULT_ASAP_MODEL if not force_free else DEFAULT_FREE_MODEL}"):',
+                "yellow bold",
+            )
 
         # Populate config data and write to file
         config_data["default_model"] = default_model_in
+        config_data["default_asap_model"] = default_asap_model_in
         config_data["default_system_prompt"] = DEFAULT_SYSTEM_PROMPT
 
         with open(config_file, "w") as file:
@@ -123,42 +171,138 @@ def setup(user_data_dir: str, config_file: str, env_file: str) -> bool:
     return True
 
 
-def main():
+def main(args: dict[str, str | bool]):
     # Resolve relevant directories and files
-    user_data_dir = os.path.join(os.path.dirname(__file__), "..", "user_data")
+    user_data_dir: str = platformdirs.user_data_dir(PROGRAM_NAME, ensure_exists=True)
     config_file: str = os.path.join(user_data_dir, "config.json")
     env_file: str = os.path.join(user_data_dir, ".env")
 
     # Run setup
     setup_status = setup(user_data_dir, config_file, env_file)
-    if setup_status == False:
+    if not setup_status:
         log_stdout("Setup Failed.", "bold red")
         return
 
     # Load dotenv and config
-    user_data_dir = os.path.join(os.path.dirname(__file__), "..", "user_data")
-    load_dotenv(os.path.join(user_data_dir, ".env"))
+    load_dotenv(env_file)
     config_data: dict[str, str] = {}
-    with open(os.path.join(user_data_dir, "config.json"), "r") as file:
+    with open(config_file, "r") as file:
         config_data = json.load(file)
 
-    response = requests.post(
-        url="https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY')}",
-        },
-        data=json.dumps(
-            {
-                "model": config_data["default_model"],
-                "messages": [
-                    {"role": "user", "content": "x86 asm vs riscv asm"}
-                ],
-            }
-        ),
+    # Define payload arguments
+    model: str = args["model"] or config_data["default_model"]
+    system_prompt: str = args["system-prompt"] or config_data["default_system_prompt"]
+    prompt: str = args["prompt"]
+
+    # Assemble payload
+    payload: dict = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ],
+        "stream": True,
+    }
+
+    # Create display
+    display_console: Console = Console()
+    display_panel: Panel = Panel(
+        title=f"[bold]{model}[/bold]",
+        renderable="",
+        subtitle="0.00s",
+        border_style="dim",
     )
 
-    print(response.json()["choices"][0]["message"]["content"])
+    # Create buffers
+    buffer: str = ""
+    content_buffer: str = ""
+    reasoning_buffer: str = ""
+
+    # Log start time and open display panel
+    start_time = time.time()
+    with Live(display_panel, console=display_console, refresh_per_second=20):
+        # Stream back response
+        with requests.post(
+            url="https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY')}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            stream=True,
+        ) as r:
+            if r.status_code != 200:
+                update_panel(
+                    display_panel,
+                    renderable=f"[bold red]Status Code {r.status_code} - {r.reason}[/bold red]",
+                    elapsed=(time.time() - start_time),
+                    border_style="dim red",
+                )
+            for chunk in r.iter_content(chunk_size=1024, decode_unicode=False):
+                # Decode Chunk
+                try:
+                    chunk = chunk.decode("utf-8")
+                except UnicodeDecodeError:
+                    chunk = chunk.decode("latin-1")
+
+                # Read reasoning and response content
+                buffer += chunk
+                while True:
+                    try:
+                        # Find the next complete SSE line
+                        line_end = buffer.find("\n")
+                        if line_end == -1:
+                            break
+
+                        line = buffer[:line_end].strip()
+                        buffer = buffer[line_end + 1 :]
+
+                        if line.startswith("data: "):
+                            data = line[6:]
+                            if data == "[DONE]":
+                                break
+
+                            try:
+                                data_obj = json.loads(data)
+                                content = data_obj["choices"][0]["delta"].get("content")
+                                reasoning_content = data_obj["choices"][0]["delta"].get(
+                                    "reasoning"
+                                )
+                                if content:
+                                    update_panel(
+                                        display_panel,
+                                        renderable=Markdown(content_buffer),
+                                        elapsed=(time.time() - start_time),
+                                        border_style="dim green",
+                                    )
+                                    content_buffer += content
+                                if reasoning_content:
+                                    update_panel(
+                                        display_panel,
+                                        renderable=Markdown(reasoning_buffer),
+                                        elapsed=(time.time() - start_time),
+                                        border_style="dim blue",
+                                    )
+                                    reasoning_buffer += reasoning_content
+                            except json.JSONDecodeError:
+                                pass
+                    except Exception as e:
+                        update_panel(
+                            display_panel,
+                            renderable=f"[bold red]Unhandled Exception: `{e}`[/bold red]",
+                            elapsed=(time.time() - start_time),
+                            border_style="dim red",
+                        )
+                        break
+        update_panel(
+            display_panel,
+            renderable=Markdown(content_buffer),
+            elapsed=(time.time() - start_time),
+            border_style="green",
+        )
 
 
 if __name__ == "__main__":
-    main()
+    print(sys.argv[1:])
+    args: dict[str, str | bool] = parse_arguments(sys.argv[1:])
+    main(args)
