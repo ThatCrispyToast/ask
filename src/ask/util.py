@@ -18,6 +18,31 @@ def update_panel(
     display_panel.border_style = border_style
 
 
+def build_help_page() -> str:
+    page_buf: str = ""
+
+    page_buf += "[b]Quickly get a response to a prompt from the Openrouter API.[/b]\n\n"
+    page_buf += f"Usage: {PROGRAM_NAME} [OPTIONS] PROMPT\n"
+
+    page_buf += "Example: `ask rust borrow checker eli5`\n\n"
+
+    page_buf += "Positional Arguments:\n"
+    page_buf += "\tPROMPT\tThe user prompt to pass to the model.\n\n"
+
+    page_buf += "Options:\n"
+    for argument in ARGUMENT_DEFINITIONS:
+        usage: str = f' <{argument[0].upper().replace("-", "_")}>' if type(argument[2]) is not bool else ''
+        page_buf += f"\t-{argument[1]}{usage}, --{argument[0]}{usage}\n"
+        page_buf += f"\t\t{argument[3]}\n"
+
+    page_buf += "\t-h, --help\n"
+    page_buf += "\t\tDisplays this help page.\n"
+
+
+
+    return page_buf
+
+
 def parse_arguments(argv: list[str]) -> dict[str, str | bool]:
     # Assemble argument definition lists for option parsing
     long_names: list[str] = [adef[0] for adef in ARGUMENT_DEFINITIONS]
@@ -53,6 +78,10 @@ def parse_arguments(argv: list[str]) -> dict[str, str | bool]:
                 else:
                     args[long_names[option_index]] = argv[argument_idx + 1]
                     skip_next = True
+            # Help Check
+            elif option in ["h", "help"]:
+                print(build_help_page())
+                sys.exit(0)
             # If option doesnt exist, assume its meant to be a part of the prompt
             else:
                 log_stdout(

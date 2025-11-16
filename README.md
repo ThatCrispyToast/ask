@@ -50,4 +50,5 @@ Note that system prompts do still require quotes.
 
 ```shell
 ask Hello! --system-prompt "Speak in pig latin."
+ask Hello! --system-prompt Speak in pig latin. # In this case, the system prompt will be set to "Speak" and "in pig latin" will be appended to the prompt.
 ```

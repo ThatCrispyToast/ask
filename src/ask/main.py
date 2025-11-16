@@ -193,7 +193,11 @@ def main():
         config_data = json.load(file)
 
     # Define payload arguments
-    model: str = args["model"] or config_data["default_model"]
+    model: str = args["model"] or (
+        config_data["default_asap_model"]
+        if args["asap"]
+        else config_data["default_model"]
+    )
     system_prompt: str = args["system-prompt"] or config_data["default_system_prompt"]
     prompt: str = args["prompt"]
 
@@ -211,7 +215,7 @@ def main():
     display_console: Console = Console()
     display_panel: Panel = Panel(
         title=f"[bold]{model}[/bold]",
-        renderable="",
+        renderable="Establishing Connection...",
         subtitle="0.00s",
         border_style="dim",
     )
@@ -221,88 +225,102 @@ def main():
     content_buffer: str = ""
     reasoning_buffer: str = ""
 
+    # Stream cancellation
+    cancelled: bool = False
+
     # Log start time and open display panel
     start_time = time.time()
     with Live(display_panel, console=display_console, refresh_per_second=20):
         # Stream back response
-        with requests.post(
-            url="https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY')}",
-                "Content-Type": "application/json",
-            },
-            json=payload,
-            stream=True,
-        ) as r:
-            if r.status_code != 200:
-                update_panel(
-                    display_panel,
-                    renderable=f"[bold red]Status Code {r.status_code} - {r.reason}[/bold red]",
-                    elapsed=(time.time() - start_time),
-                    border_style="dim red",
-                )
-            for chunk in r.iter_content(chunk_size=1024, decode_unicode=False):
-                # Decode Chunk
+        with requests.Session() as session:
+            with session.post(
+                url="https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY')}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                stream=True,
+            ) as r:
                 try:
-                    chunk = chunk.decode("utf-8")
-                except UnicodeDecodeError:
-                    chunk = chunk.decode("latin-1")
-
-                # Read reasoning and response content
-                buffer += chunk
-                while True:
-                    try:
-                        # Find the next complete SSE line
-                        line_end = buffer.find("\n")
-                        if line_end == -1:
-                            break
-
-                        line = buffer[:line_end].strip()
-                        buffer = buffer[line_end + 1 :]
-
-                        if line.startswith("data: "):
-                            data = line[6:]
-                            if data == "[DONE]":
-                                break
-
-                            try:
-                                data_obj = json.loads(data)
-                                content = data_obj["choices"][0]["delta"].get("content")
-                                reasoning_content = data_obj["choices"][0]["delta"].get(
-                                    "reasoning"
-                                )
-                                if content:
-                                    update_panel(
-                                        display_panel,
-                                        renderable=Markdown(content_buffer),
-                                        elapsed=(time.time() - start_time),
-                                        border_style="dim green",
-                                    )
-                                    content_buffer += content
-                                if reasoning_content:
-                                    update_panel(
-                                        display_panel,
-                                        renderable=Markdown(reasoning_buffer),
-                                        elapsed=(time.time() - start_time),
-                                        border_style="dim blue",
-                                    )
-                                    reasoning_buffer += reasoning_content
-                            except json.JSONDecodeError:
-                                pass
-                    except Exception as e:
+                    if r.status_code != 200:
                         update_panel(
                             display_panel,
-                            renderable=f"[bold red]Unhandled Exception: `{e}`[/bold red]",
+                            renderable=f"[bold red]Status Code {r.status_code} - {r.reason}[/bold red]",
                             elapsed=(time.time() - start_time),
                             border_style="dim red",
                         )
-                        break
+                    for chunk in r.iter_content(chunk_size=1024, decode_unicode=False):
+                        # Decode Chunk
+                        try:
+                            chunk = chunk.decode("utf-8")
+                        except UnicodeDecodeError:
+                            chunk = chunk.decode("latin-1")
+
+                        # Read reasoning and response content
+                        buffer += chunk
+                        while True:
+                            try:
+                                # Find the next complete SSE line
+                                line_end = buffer.find("\n")
+                                if line_end == -1:
+                                    break
+
+                                line = buffer[:line_end].strip()
+                                buffer = buffer[line_end + 1 :]
+
+                                if line.startswith("data: "):
+                                    data = line[6:]
+                                    if data == "[DONE]":
+                                        break
+
+                                    try:
+                                        data_obj = json.loads(data)
+                                        content = data_obj["choices"][0]["delta"].get(
+                                            "content"
+                                        )
+                                        reasoning_content = data_obj["choices"][0][
+                                            "delta"
+                                        ].get("reasoning")
+                                        if content:
+                                            update_panel(
+                                                display_panel,
+                                                renderable=Markdown(content_buffer),
+                                                elapsed=(time.time() - start_time),
+                                                border_style="dim green",
+                                            )
+                                            content_buffer += content
+                                        if reasoning_content:
+                                            update_panel(
+                                                display_panel,
+                                                renderable=Markdown(reasoning_buffer),
+                                                elapsed=(time.time() - start_time),
+                                                border_style="dim blue",
+                                            )
+                                            reasoning_buffer += reasoning_content
+                                    except json.JSONDecodeError:
+                                        pass
+                            except Exception as e:
+                                update_panel(
+                                    display_panel,
+                                    renderable=f"[bold red]Unhandled Exception: `{e}`[/bold red]",
+                                    elapsed=(time.time() - start_time),
+                                    border_style="dim red",
+                                )
+                                break
+                except KeyboardInterrupt:
+                    # Stream Cancellation
+                    cancelled = True
+                    # display_console.clear()
+            r.close()
         update_panel(
             display_panel,
-            renderable=Markdown(content_buffer),
+            renderable=Markdown(content_buffer or reasoning_buffer),
             elapsed=(time.time() - start_time),
-            border_style="green",
+            border_style="green" if content_buffer else "blue",
         )
+        if cancelled:
+            display_panel.subtitle = f"{time.time() - start_time:.2f}s (CANCELLED)"
 
 
 if __name__ == "__main__":
