@@ -1,6 +1,8 @@
 # `ask`
 
-> A small plug-and-play oneshot openrouter cli.
+> Plug-and-play oneshot openrouter cli.
+
+![program demo](./resources/ask-demo.gif)
 
 ## Installation
 

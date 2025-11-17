@@ -64,8 +64,8 @@ Set FontSize 17
 Set Width 1200
 Set Height 600
 
-#Type "ask goroutine channel tldr" Sleep 500ms  Enter
-#Sleep 6s
+Type "ask rust map example" Sleep 500ms  Enter
+Sleep 8s
 
-Type "ask who invented the lightbulb -sp "speak in pig latin"" Sleep 500ms  Enter
-Sleep 6s
+Type 'ask -m "openai/gpt-5.1-chat" -sp "speak in pig latin" who invented the lightbulb' Sleep 500ms  Enter
+Sleep 10s
