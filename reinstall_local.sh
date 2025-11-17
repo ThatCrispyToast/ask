@@ -3,7 +3,7 @@
 set -xe
 
 # Clear .config
-if [[ "$1" == "clear" ]]; then
+if [[ "$1" == "clear_config" ]]; then
 	CONFIG_PATH="$(python -c 'import platformdirs; print(platformdirs.user_data_dir("ask") + "/config.json")')"
 	rm "$CONFIG_PATH"
 fi

@@ -4,4 +4,6 @@
  - [x] make installable
  - [x] asap mode
  - [ ] demo
- - [ ] control reasoning behavior
+ - [x] control reasoning behavior
+ - [ ] shorten help page descriptions to fit in one line.
+ - [ ] rewrite to accept dataclass based arguments

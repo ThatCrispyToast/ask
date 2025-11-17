@@ -209,10 +209,16 @@ def main():
             {"role": "user", "content": prompt},
         ],
         "stream": True,
+        "reasoning": {
+            "effort": args["reasoning-effort"],
+            "enabled": True if args["reasoning-effort"] != "none" else False,
+        },
     }
 
     # Create display
-    display_console: Console = Console()
+    display_console: Console = Console(
+        quiet=args["plain"],
+    )
     display_panel: Panel = Panel(
         title=f"[bold]{model}[/bold]",
         renderable="Establishing Connection...",
@@ -230,7 +236,12 @@ def main():
 
     # Log start time and open display panel
     start_time = time.time()
-    with Live(display_panel, console=display_console, refresh_per_second=20):
+    with Live(
+        display_panel,
+        console=display_console,
+        refresh_per_second=20,
+        vertical_overflow="visible",
+    ):
         # Stream back response
         with requests.Session() as session:
             with session.post(
@@ -276,6 +287,8 @@ def main():
 
                                     try:
                                         data_obj = json.loads(data)
+                                        if "error" in data_obj:
+                                            raise Exception(data_obj["error"]["message"])
                                         content = data_obj["choices"][0]["delta"].get(
                                             "content"
                                         )
@@ -311,7 +324,7 @@ def main():
                 except KeyboardInterrupt:
                     # Stream Cancellation
                     cancelled = True
-                    # display_console.clear()
+                    display_console.clear()
             r.close()
         update_panel(
             display_panel,
@@ -321,6 +334,8 @@ def main():
         )
         if cancelled:
             display_panel.subtitle = f"{time.time() - start_time:.2f}s (CANCELLED)"
+    if args["plain"]:
+        __import__("builtins").print(content_buffer)
 
 
 if __name__ == "__main__":
