@@ -1,6 +1,6 @@
 # `ask`
 
-> Plug-and-play oneshot openrouter cli.
+> A dead simple openrouter cli.
 
 ![program demo](./resources/ask-demo.gif)
 
@@ -29,6 +29,8 @@ Uninstall with:
 ```shell
 uv tool uninstall ask
 ```
+Note that your configuration files (stored at your system's default user data directory) will remain after uninstallation.
+**Remember to revoke your Openrouter API key.**
 
 
 ## Setup
@@ -64,7 +66,7 @@ ask Hello! --system-prompt Speak in pig latin. # In this case, the system prompt
 
 A nix flake is provided to create an environment with all development dependencies.
 
-### General
+### Linux, Windows, MacOS
 
 **Requirements**:
 - [`uv`](https://github.com/astral-sh/uv)
