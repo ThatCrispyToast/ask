@@ -164,7 +164,7 @@ def setup(user_data_dir: str, config_file: str, env_file: str) -> bool:
         config_data["default_system_prompt"] = DEFAULT_SYSTEM_PROMPT
 
         with open(config_file, "w") as file:
-            json.dump(config_data, file)
+            json.dump(config_data, file, indent=2)
 
     # All done, return gracefully
     log_stdout("Setup complete!", "green")
@@ -172,9 +172,6 @@ def setup(user_data_dir: str, config_file: str, env_file: str) -> bool:
 
 
 def main():
-    # Parse Arguments
-    args: dict[str, str | bool] = parse_arguments(sys.argv[1:])
-
     # Resolve relevant directories and files
     user_data_dir: str = platformdirs.user_data_dir(PROGRAM_NAME, ensure_exists=True)
     config_file: str = os.path.join(user_data_dir, "config.json")
@@ -185,6 +182,9 @@ def main():
     if not setup_status:
         log_stdout("Setup Failed.", "bold red")
         return
+
+    # Parse Arguments
+    args: dict[str, str | bool] = parse_arguments(sys.argv[1:])
 
     # Load dotenv and config
     load_dotenv(env_file)
@@ -288,7 +288,9 @@ def main():
                                     try:
                                         data_obj = json.loads(data)
                                         if "error" in data_obj:
-                                            raise Exception(data_obj["error"]["message"])
+                                            raise Exception(
+                                                data_obj["error"]["message"]
+                                            )
                                         content = data_obj["choices"][0]["delta"].get(
                                             "content"
                                         )

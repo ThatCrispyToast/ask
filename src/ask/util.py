@@ -52,6 +52,9 @@ def parse_arguments(argv: list[str]) -> dict[str, str | bool]:
     args: dict[str, str | bool] = {}
     for defined_argument in ARGUMENT_DEFINITIONS:
         args[defined_argument[0]] = defined_argument[2]
+    # Default to plain if output is being piped
+    if not sys.stdout.isatty():
+        args["plain"] = True
 
     # Build prompt and options
     prompt_list: list[str] = []
