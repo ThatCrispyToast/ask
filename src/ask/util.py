@@ -20,8 +20,17 @@ def update_panel(
 
 def build_help_page() -> str:
     page_buf: str = ""
+    # Augment ARGUMENT_DEFINITIONS with help page
+    definitions = ARGUMENT_DEFINITIONS + [
+        (
+            "help",
+            "h",
+            False,
+            "Displays this help page",
+        ),
+    ]
 
-    page_buf += "[b]Quickly get a response to a prompt from the Openrouter API.[/b]\n\n"
+    page_buf += "[b]Query the Openrouter API for a response.[/b]\n\n"
     page_buf += f"Usage: {PROGRAM_NAME} [OPTIONS] PROMPT\n"
 
     page_buf += "Example: `ask rust borrow checker eli5`\n\n"
@@ -30,15 +39,17 @@ def build_help_page() -> str:
     page_buf += "\tPROMPT\tThe user prompt to pass to the model.\n\n"
 
     page_buf += "Options:\n"
-    for argument in ARGUMENT_DEFINITIONS:
-        usage: str = f' <{argument[0].upper().replace("-", "_")}>' if type(argument[2]) is not bool else ''
-        page_buf += f"\t-{argument[1]}{usage}, --{argument[0]}{usage}\n"
-        page_buf += f"\t\t{argument[3]}\n"
+    for argument in definitions:
+        usage: str = (
+            f" [white not bold]<{argument[0].upper().replace('-', '_')}>[/white not bold]"
+            if type(argument[2]) is not bool
+            else ""
+        )
+        page_buf += f"\t[b]-{argument[1]}{usage}, --{argument[0]}{usage}[/b]\n"
+        page_buf += f"\t    {argument[3]}\n"
 
-    page_buf += "\t-h, --help\n"
-    page_buf += "\t\tDisplays this help page.\n"
-
-
+    # page_buf += "\t-h, --help\n"
+    # page_buf += "\t\tDisplays this help page\n"
 
     return page_buf
 

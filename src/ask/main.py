@@ -20,9 +20,9 @@ from ask.constants import (
 )
 
 
-def setup(user_data_dir: str, config_file: str, env_file: str) -> bool:
+def setup(user_config_dir: str, config_file: str, env_file: str) -> bool:
     # Check for all files and return if everything is present
-    user_data_exists = os.path.exists(user_data_dir)
+    user_data_exists = os.path.exists(user_config_dir)
     env_file_exists = os.path.exists(env_file)
     config_file_exists = os.path.exists(config_file)
 
@@ -36,7 +36,7 @@ def setup(user_data_dir: str, config_file: str, env_file: str) -> bool:
     # Create user_data dir if not present
     if not user_data_exists:
         log_stdout("Creating user data...")
-        os.mkdir(user_data_dir)
+        os.mkdir(user_config_dir)
 
     # Create secret file if not present
     if not env_file_exists:
@@ -173,12 +173,12 @@ def setup(user_data_dir: str, config_file: str, env_file: str) -> bool:
 
 def main():
     # Resolve relevant directories and files
-    user_data_dir: str = platformdirs.user_data_dir(PROGRAM_NAME, ensure_exists=True)
-    config_file: str = os.path.join(user_data_dir, "config.json")
-    env_file: str = os.path.join(user_data_dir, ".env")
+    user_config_dir: str = platformdirs.user_config_dir(PROGRAM_NAME, ensure_exists=True)
+    config_file: str = os.path.join(user_config_dir, "config.json")
+    env_file: str = os.path.join(user_config_dir, ".env")
 
     # Run setup
-    setup_status = setup(user_data_dir, config_file, env_file)
+    setup_status = setup(user_config_dir, config_file, env_file)
     if not setup_status:
         log_stdout("Setup Failed.", "bold red")
         return
@@ -263,10 +263,12 @@ def main():
                         )
                     for chunk in r.iter_content(chunk_size=1024, decode_unicode=False):
                         # Decode Chunk
-                        try:
-                            chunk = chunk.decode("utf-8")
-                        except UnicodeDecodeError:
-                            chunk = chunk.decode("latin-1")
+                        # try:
+                        #     chunk = chunk.decode("utf-8")
+                        # except UnicodeDecodeError:
+                        #     chunk = chunk.decode("latin-1")
+                        # WARN: above block probable cause of table bug, temporary fix below
+                        chunk = chunk.decode("utf-8") 
 
                         # Read reasoning and response content
                         buffer += chunk

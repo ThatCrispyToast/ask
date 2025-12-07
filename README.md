@@ -29,9 +29,9 @@ Uninstall with:
 ```shell
 uv tool uninstall ask
 ```
-Note that your configuration files (stored at your system's default user data directory) will remain after uninstallation.
-**Remember to revoke your Openrouter API key.**
-
+Note that your configuration files (stored at your system's default user config directory) will remain after uninstallation.
+> [!WARNING]
+> **Revoke your Openrouter API key after uninstallation.**
 
 ## Setup
 When running `ask` for the first time, you'll be prompted to enter your Openrouter API key. Generate one at [the Openrouter website](https://openrouter.ai/settings/keys).

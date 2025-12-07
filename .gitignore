@@ -11,3 +11,4 @@ wheels/
 
 # Dev and Linting
 .ruff_cache
+.direnv/

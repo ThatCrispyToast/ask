@@ -13,30 +13,37 @@ ARGUMENT_DEFINITIONS: list[tuple[str, str, str | bool, str]] = [
         "model",
         "m",
         "",
-        "Sets the Openrouter model to use. Overrides '--asap'. Default: 'config.default_model'.",
+        "Set the Openrouter model to use. Overrides '--asap' and '--preset'. Default in 'config.json'",
     ),
     (
         "system-prompt",
         "sp",
         "",
-        "Sets the system prompt passed to the model. Default: 'config.default_system_prompt'.",
+        "Set the system prompt passed to the model. Overrides '--preset'. Default in 'config.json'",
     ),
     (
         "asap",
         "a",
         False,
-        "Uses your config's 'default_asap_model' to retrieve a response faster.",
+        "Use your config's 'default_asap_model' to retrieve a response faster",
     ),
     (
         "plain",
-        "p",
+        "P",
         False,
-        "Responds without text decorations, streaming, or pretty output.",
+        "Respond without text decorations, streaming, or pretty output",
     ),
     (
         "reasoning-effort",
         "r",
         "medium",
-        "Controls the model's reasoning behavior. Default: 'medium'. ('none', 'minimal', 'low', 'medium', 'high')",
+        "Set model reasoning level (default 'medium'): 'none', 'minimal', 'low', 'medium', 'high'",
+
     ),
+    # (
+    #     "preset",
+    #     "p",
+    #     "",
+    #     "Use a model/system-prompt preset defined in your 'config.json'",
+    # ),
 ]

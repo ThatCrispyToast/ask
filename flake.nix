@@ -41,7 +41,7 @@
 					uv venv .venv
 				fi
 
-				source ".venv/bin/activate"
+				source "./.venv/bin/activate"
 				echo "---- Shell Active. -----"
 			'';
           };
