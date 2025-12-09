@@ -1,5 +1,5 @@
 {
-  description = "Flake containing uv && vhs";
+  description = "Ask development flake";
 
   # Flake inputs
   inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
@@ -30,6 +30,7 @@
           default = pkgs.mkShellNoCC {
 			# Packages
             packages = with pkgs; [
+				python312
 				uv
 				vhs
 			];
