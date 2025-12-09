@@ -22,11 +22,11 @@ from ask.constants import (
 
 def setup(user_config_dir: str, config_file: str, env_file: str) -> bool:
     # Check for all files and return if everything is present
-    user_data_exists = os.path.exists(user_config_dir)
+    user_config_exists = os.path.exists(user_config_dir)
     env_file_exists = os.path.exists(env_file)
     config_file_exists = os.path.exists(config_file)
 
-    if env_file_exists and config_file_exists:  # user_data checked implicitly
+    if env_file_exists and config_file_exists:  # user_config checked implicitly
         # Leave setup
         return True
 
@@ -34,7 +34,7 @@ def setup(user_config_dir: str, config_file: str, env_file: str) -> bool:
     force_free: bool = False
 
     # Create user_data dir if not present
-    if not user_data_exists:
+    if not user_config_exists:
         log_stdout("Creating user data...")
         os.mkdir(user_config_dir)
 
@@ -167,7 +167,7 @@ def setup(user_config_dir: str, config_file: str, env_file: str) -> bool:
             json.dump(config_data, file, indent=2)
 
     # All done, return gracefully
-    log_stdout("Setup complete!", "green")
+    log_stdout("Setup complete!", "bold dim green")
     return True
 
 
