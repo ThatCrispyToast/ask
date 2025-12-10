@@ -209,8 +209,20 @@ def main() -> None:
     model_list = get_model_list(cache_dir, model_list_json)
     if not model_list:
         log_stdout("Failed to fetch model list. Try again.", "bold dim yellow")
+
+    # Define payload arguments
+    system_prompt: str = args["system-prompt"] or config_data["default_system_prompt"]
+    prompt: str = args["prompt"]
+
+    # Model Handling
+    model: str = args["model"] or (
+        config_data["default_asap_model"]
+        if args["asap"]
+        else config_data["default_model"]
+    )
+
     # Check if model exists and fuzzy search otherwise
-    if args["model"].lower() not in model_list:
+    if model.lower() not in model_list:
         # TODO: Implement search
         # Try refreshing model list to see if its new
         model_list = get_model_list(cache_dir, model_list_json, refresh=True)
@@ -219,16 +231,7 @@ def main() -> None:
             # IMPLEMENT SEARCH HERE
             log_stdout("Invalid Model.", "bold red")
             return
-        
 
-    # Define payload arguments
-    model: str = args["model"] or (
-        config_data["default_asap_model"]
-        if args["asap"]
-        else config_data["default_model"]
-    )
-    system_prompt: str = args["system-prompt"] or config_data["default_system_prompt"]
-    prompt: str = args["prompt"]
 
     # Assemble payload
     payload: dict = {
