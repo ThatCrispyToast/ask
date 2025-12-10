@@ -10,7 +10,7 @@ import sys
 import time
 import platformdirs
 
-from ask.util import log_stdout, parse_arguments, update_panel
+from ask.util import log_stdout, parse_arguments, update_panel, get_model_list
 from ask.constants import (
     DEFAULT_MODEL,
     DEFAULT_ASAP_MODEL,
@@ -20,7 +20,12 @@ from ask.constants import (
 )
 
 
-def setup(user_config_dir: str, config_file: str, env_file: str) -> bool:
+def setup(
+    user_config_dir: str,
+    config_file: str,
+    env_file: str,
+    model_list_json: str,
+) -> bool:
     # Check for all files and return if everything is present
     user_config_exists = os.path.exists(user_config_dir)
     env_file_exists = os.path.exists(env_file)
@@ -44,7 +49,7 @@ def setup(user_config_dir: str, config_file: str, env_file: str) -> bool:
             '>> Generate API key at "https://openrouter.ai/settings/keys" and paste below:',
             "bold",
         )
-        # Keep asking until key is valid
+        # Keep asking until key is valid{"error":{"message
         api_key: str = ""
         while True:
             api_key = input().strip()
@@ -88,11 +93,17 @@ def setup(user_config_dir: str, config_file: str, env_file: str) -> bool:
             )
             return False
 
-        # Parse model data into model list
+        # Cache model data and model list parsed from data
         model_list_data = models_data_req.json()["data"]
         model_list: list[str] = []
         for model in model_list_data:
             model_list.append(model["id"])
+
+        with open(
+            model_list_json,
+            "w",
+        ) as model_list_file:
+            json.dump(model_list, model_list_file)
 
         # Obtain default model
         log_stdout(
@@ -171,14 +182,18 @@ def setup(user_config_dir: str, config_file: str, env_file: str) -> bool:
     return True
 
 
-def main():
+def main() -> None:
     # Resolve relevant directories and files
-    user_config_dir: str = platformdirs.user_config_dir(PROGRAM_NAME, ensure_exists=True)
+    user_config_dir: str = platformdirs.user_config_dir(
+        PROGRAM_NAME, ensure_exists=True
+    )
     config_file: str = os.path.join(user_config_dir, "config.json")
     env_file: str = os.path.join(user_config_dir, ".env")
+    cache_dir: str = os.path.join(platformdirs.user_cache_dir(), PROGRAM_NAME)
+    model_list_json: str = os.path.join(cache_dir, "model_list.json")
 
     # Run setup
-    setup_status = setup(user_config_dir, config_file, env_file)
+    setup_status = setup(user_config_dir, config_file, env_file, model_list_json)
     if not setup_status:
         log_stdout("Setup Failed.", "bold red")
         return
@@ -186,11 +201,25 @@ def main():
     # Parse Arguments
     args: dict[str, str | bool] = parse_arguments(sys.argv[1:])
 
-    # Load dotenv and config
+    # Load dotenv, config, and model cache
     load_dotenv(env_file)
     config_data: dict[str, str] = {}
     with open(config_file, "r") as file:
         config_data = json.load(file)
+    model_list = get_model_list(cache_dir, model_list_json)
+    if not model_list:
+        log_stdout("Failed to fetch model list. Try again.", "bold dim yellow")
+    # Check if model exists and fuzzy search otherwise
+    if args["model"].lower() not in model_list:
+        # TODO: Implement search
+        # Try refreshing model list to see if its new
+        model_list = get_model_list(cache_dir, model_list_json, refresh=True)
+        if args["model"].lower() not in model_list:
+            # Still doesn't exist, time to search
+            # IMPLEMENT SEARCH HERE
+            log_stdout("Invalid Model.", "bold red")
+            return
+        
 
     # Define payload arguments
     model: str = args["model"] or (
@@ -230,6 +259,7 @@ def main():
     buffer: str = ""
     content_buffer: str = ""
     reasoning_buffer: str = ""
+    log_buffer: list[str] = []
 
     # Stream cancellation
     cancelled: bool = False
@@ -268,78 +298,83 @@ def main():
                         # except UnicodeDecodeError:
                         #     chunk = chunk.decode("latin-1")
                         # WARN: above block probable cause of table bug, temporary fix below
-                        chunk = chunk.decode("utf-8") 
+                        chunk = chunk.decode("utf-8")
+                        log_buffer.append(chunk)
+
+                        try:
+                            error_prospect = json.loads(chunk)
+                            if "error" in error_prospect:
+                                raise Exception(error_prospect["error"]["message"])
+                        except json.JSONDecodeError:
+                            pass
 
                         # Read reasoning and response content
                         buffer += chunk
                         while True:
-                            try:
-                                # Find the next complete SSE line
-                                line_end = buffer.find("\n")
-                                if line_end == -1:
+                            # Find the next complete SSE line
+                            line_end = buffer.find("\n")
+                            if line_end == -1:
+                                break
+
+                            line = buffer[:line_end].strip()
+                            buffer = buffer[line_end + 1 :]
+
+                            if line.startswith("data: "):
+                                data = line[6:]
+                                if data == "[DONE]":
                                     break
 
-                                line = buffer[:line_end].strip()
-                                buffer = buffer[line_end + 1 :]
-
-                                if line.startswith("data: "):
-                                    data = line[6:]
-                                    if data == "[DONE]":
-                                        break
-
-                                    try:
-                                        data_obj = json.loads(data)
-                                        if "error" in data_obj:
-                                            raise Exception(
-                                                data_obj["error"]["message"]
-                                            )
-                                        content = data_obj["choices"][0]["delta"].get(
-                                            "content"
+                                try:
+                                    data_obj = json.loads(data)
+                                    content = data_obj["choices"][0]["delta"].get(
+                                        "content"
+                                    )
+                                    reasoning_content = data_obj["choices"][0][
+                                        "delta"
+                                    ].get("reasoning")
+                                    if content:
+                                        update_panel(
+                                            display_panel,
+                                            renderable=Markdown(content_buffer),
+                                            elapsed=(time.time() - start_time),
+                                            border_style="dim green",
                                         )
-                                        reasoning_content = data_obj["choices"][0][
-                                            "delta"
-                                        ].get("reasoning")
-                                        if content:
-                                            update_panel(
-                                                display_panel,
-                                                renderable=Markdown(content_buffer),
-                                                elapsed=(time.time() - start_time),
-                                                border_style="dim green",
-                                            )
-                                            content_buffer += content
-                                        if reasoning_content:
-                                            update_panel(
-                                                display_panel,
-                                                renderable=Markdown(reasoning_buffer),
-                                                elapsed=(time.time() - start_time),
-                                                border_style="dim blue",
-                                            )
-                                            reasoning_buffer += reasoning_content
-                                    except json.JSONDecodeError:
-                                        pass
-                            except Exception as e:
-                                update_panel(
-                                    display_panel,
-                                    renderable=f"[bold red]Unhandled Exception: `{e}`[/bold red]",
-                                    elapsed=(time.time() - start_time),
-                                    border_style="dim red",
-                                )
-                                break
+                                        content_buffer += content
+                                    if reasoning_content:
+                                        update_panel(
+                                            display_panel,
+                                            renderable=Markdown(reasoning_buffer),
+                                            elapsed=(time.time() - start_time),
+                                            border_style="dim blue",
+                                        )
+                                        reasoning_buffer += reasoning_content
+                                except json.JSONDecodeError:
+                                    pass
                 except KeyboardInterrupt:
                     # Stream Cancellation
                     cancelled = True
                     display_console.clear()
+                except Exception as e:
+                    update_panel(
+                        display_panel,
+                        renderable=f'[bold red]Unhandled Exception: "{e}"[/bold red]',
+                        elapsed=(time.time() - start_time),
+                        border_style="dim red",
+                    )
+                    cancelled = True
+
             r.close()
-        update_panel(
-            display_panel,
-            renderable=Markdown(content_buffer or reasoning_buffer),
-            elapsed=(time.time() - start_time),
-            border_style="green" if content_buffer else "blue",
-        )
+        if r.status_code == 200:
+            update_panel(
+                display_panel,
+                renderable=Markdown(content_buffer or reasoning_buffer),
+                elapsed=(time.time() - start_time),
+                border_style="green" if content_buffer else "blue",
+            )
         if cancelled:
             display_panel.subtitle = f"{time.time() - start_time:.2f}s (CANCELLED)"
     if args["plain"]:
-        __import__("builtins").print(content_buffer)
+        print(content_buffer)
 
 
 if __name__ == "__main__":

@@ -2,6 +2,9 @@ from rich import print
 from rich.markdown import Markdown
 from rich.panel import Panel
 import sys
+import os
+import json
+import requests
 
 from ask.constants import ARGUMENT_DEFINITIONS, PROGRAM_NAME
 
@@ -16,6 +19,37 @@ def update_panel(
     display_panel.renderable = renderable
     display_panel.subtitle = f"{elapsed:.2f}s"
     display_panel.border_style = border_style
+
+def get_model_list(cache_dir: str, model_list_json: str, refresh: bool = False) -> list:
+    # Retrieve model cache if not present locally
+    if not os.path.exists(model_list_json) or refresh:
+        log_stdout("Refreshing model list...", "dim white")
+        # Generate model cache
+        models_data_req = requests.get(
+            "https://openrouter.ai/api/v1/models",
+            headers={"Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY')}"},
+        )
+        if not models_data_req.ok:
+            log_stdout(
+                "Failed to fetch model list from Openrouter API. Try again.", "yellow"
+            )
+            return []
+
+        # Cache model and model_list data
+        if not os.path.exists(cache_dir):
+            os.mkdir(cache_dir)
+        model_list_data = models_data_req.json()["data"]
+        model_list: list[str] = [model["id"] for model in model_list_data]
+        with open(
+            model_list_json,
+            "w",
+        ) as model_list_file:
+            json.dump(model_list, model_list_file)
+    # Load model list
+    with open(model_list_json, "r") as model_list_file:
+        model_list = json.load(model_list_file)
+
+    return model_list
 
 
 def build_help_page() -> str:
